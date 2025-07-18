@@ -1,0 +1,230 @@
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+SettingsAutofarm = {}
+if _G.AutofarmSettings1 then
+	SettingsAutofarm = _G.AutofarmSettings1
+else
+	_G.AutofarmSettings1 = {}
+	SettingsAutofarm = {}
+end
+if _G.AutoFarmMM2IsLoaded then
+	if _G.FramesAFGlobal[1].Visible == false then
+		_G.FramesAFGlobal[1].Visible = true
+	end
+	return
+end
+_G.AutoFarmMM2IsLoaded = true
+Player = game.Players.LocalPlayer
+Players = game.Players
+CoreGui = game.CoreGui
+autofarmstopevent = Instance.new("BindableEvent")
+GuiLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/ksp39fkzxmv934u/GuiLibrary/refs/heads/main/script"))()
+RunService = game:GetService("RunService")
+TweenService = game:GetService("TweenService")
+CoinCollectedEvent = game.ReplicatedStorage.Remotes.Gameplay.CoinCollected
+RoundStartEvent = game.ReplicatedStorage.Remotes.Gameplay.RoundStart
+RoundEndEvent = game.ReplicatedStorage.Remotes.Gameplay.RoundEndFade
+RandomNameFunction = GuiLibrary.RandomName
+MainGui = GuiLibrary.ScreenGUI({
+	Name = "Summer autofarm",
+	ResetOnSpawn = false,
+	Parent = CoreGui
+})
+MainFrame = GuiLibrary.Frame({
+	Name = RandomNameFunction(),
+	AnchorPoint = Vector2.new(.5, .5),
+	BackgroundColor3 = Color3.new(0.113725, 0.113725, 0.113725),
+	Position = UDim2.new(.5, 0, .5, 0),
+	Size = UDim2.new(0.157, 0, 0.152, 0),
+	ZIndex = 2,
+	Parent = MainGui,
+	Draggable_ = true
+})
+_G.FramesAFGlobal = {MainFrame}
+MainFrameUiCorner = GuiLibrary.UICorner({
+	Name = RandomNameFunction(),
+	CornerRadius = UDim.new(0, 12),
+	Parent = MainFrame
+})
+CloseMainFrameButton = GuiLibrary.TextButton({
+	Name = RandomNameFunction(),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0.833, 0, 0, 0),
+	Size = UDim2.new(0.167, 0, 0.333, 0),
+	["Font"] = Enum.Font.FredokaOne,
+	Text = "X",
+	ZIndex = 2,
+	TextColor3 = Color3.new(1, 0, 0),
+	TextScaled = true,
+	Parent = MainFrame
+})
+NameTextLabel = GuiLibrary.TextLabel({
+	Name = RandomNameFunction(),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 0, 0, 0),
+	Size = UDim2.new(0.833, 0, 0.333, 0),
+	["Font"] = Enum.Font.FredokaOne,
+	Text = "Summer autofarm",
+	ZIndex = 2,
+	TextColor3 = Color3.new(1, 1, 1),
+	TextScaled = true,
+	Parent = MainFrame
+})
+AutofarmButton = GuiLibrary.TextButton({
+	Name = RandomNameFunction(),
+	BackgroundTransparency = 0,
+	BackgroundColor3 = Color3.new(0, 0.666667, 1),
+	Position = UDim2.new(0.167, 0, 0.438, 0),
+	Size = UDim2.new(0.667, 0, 0.333, 0),
+	["Font"] = Enum.Font.FredokaOne,
+	Text = "Autofarm",
+	ZIndex = 2,
+	TextColor3 = Color3.new(1, 0, 0),
+	TextScaled = true,
+	Parent = MainFrame
+})
+AutofarmButtonUiCorner = GuiLibrary.UICorner({
+	Name = RandomNameFunction(),
+	CornerRadius = UDim.new(0, 12),
+	Parent = AutofarmButton
+})
+--Autofarm scripts must have anti afk
+function AntiAFK()
+	local GC = getconnections or get_signal_cons
+	if GC then
+		for i,v in pairs(GC(Player.Idled)) do
+			if v["Disable"] then
+				v["Disable"](v)
+			elseif v["Disconnect"] then
+				v["Disconnect"](v)
+			end
+		end
+	else
+		local VirtualUser = cloneref(game:GetService("VirtualUser"))
+		Players.LocalPlayer.Idled:Connect(function()
+			VirtualUser:CaptureController()
+			VirtualUser:ClickButton2(Vector2.new())
+		end)
+	end
+end
+
+AntiAFK() --Run
+
+AutofarmStarted = false
+function StartAutofarmButtonC()
+	if not AutofarmStarted then
+		AutofarmStarted = true
+		AutofarmIN = true
+		AutofarmButton.TextColor3 = Color3.new(0, 1, 0)
+	else
+		AutofarmStarted = false
+		AutofarmButton.TextColor3 = Color3.new(1, 0, 0)
+		autofarmstopevent:Fire()
+	end
+end
+
+AutofarmIN = false
+
+function returncoincontaier()
+	for _, v in workspace:GetChildren() do
+		if v:FindFirstChild("CoinContainer") and v:IsA("Model") then
+			return v:FindFirstChild("CoinContainer")
+		end
+	end
+	return false
+end
+
+FullEggBag = false
+CurrentCoinType = "BeachBall"
+CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
+	if cointype == CurrentCoinType then
+		AutofarmIN = true
+	end
+	if cointype == CurrentCoinType and tonumber(current) == tonumber(max) then
+		AutofarmIN = false
+		FullEggBag = true
+	end
+end)
+
+function PcallTP(Position)
+	if Player.Character then
+		if Player.Character:FindFirstChild("HumanoidRootPart") then
+			Player.Character.HumanoidRootPart.CFrame = Position
+		end
+	end
+end
+
+function FindNearestCoin(container)
+	local coin = nil
+	local magn = math.huge
+	for _, v in pairs(container:GetChildren()) do
+		if v:GetAttribute("CoinID") == CurrentCoinType and v:FindFirstChild("TouchInterest") then
+			if Player.Character then
+				if Player.Character:FindFirstChild("HumanoidRootPart") then
+					if math.abs((Player.Character.HumanoidRootPart.Position - v.Position).Magnitude) < magn then
+						coin = v
+						magn = math.abs((Player.Character.HumanoidRootPart.Position - v.Position).Magnitude)
+					end
+				end
+			end
+		end
+	end
+	local gg = {coin, magn}
+	return gg
+end
+
+spawn(function()
+	while true do
+		if AutofarmStarted and AutofarmIN and Player.Character and returncoincontaier() and Player:GetAttribute("Alive") then
+			if FindNearestCoin(returncoincontaier())[1] ~= nil then
+				local dds = FindNearestCoin(returncoincontaier())
+				if dds[2] > 290 then PcallTP(dds[1].CFrame); continue end
+				local strg = TweenService:Create(Player.Character.HumanoidRootPart, TweenInfo.new(dds[2] / 23, Enum.EasingStyle.Linear), {CFrame = CFrame.new(dds[1].Position)})
+				strg:Play()
+				autofarmstopevent.Event:Connect(function()
+					strg:Cancel()
+				end)
+				while dds[1]:FindFirstChild("TouchInterest") do
+					wait()
+				end
+				strg:Cancel()
+				wait(0.0001)
+			end
+		else
+			wait(0.1)
+		end
+		wait(0.0001)
+	end
+end)
+
+RoundStartEvent.OnClientEvent:Connect(function()
+	AutofarmIN = true
+	FullEggBag = false
+end)
+
+RoundEndEvent.OnClientEvent:Connect(function()
+	AutofarmIN = false
+	FullEggBag = false
+end)
+
+function CloseGuiCheck()
+	if MainFrame.Visible == true then
+		MainFrame.Visible = false
+	else
+		MainFrame.Visible = true
+	end
+end
+
+--Buttons connections
+AutofarmButton.MouseButton1Click:Connect(StartAutofarmButtonC)
+CloseMainFrameButton.MouseButton1Click:Connect(CloseGuiCheck)
+
+--Configs
+for Configname, Configvalue in pairs(SettingsAutofarm) do
+	if Configname == "AntiAfk" and Configvalue == true then
+		--Anti afk enabled
+	elseif Configname == "StartAutofarm" and Configvalue == true then
+		StartAutofarmButtonC()
+	end
+end
